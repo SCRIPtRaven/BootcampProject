@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="English">
+<head>
+    <title>Interactive Dashboard</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0; /* Light gray background outside the container */
+        }
+        #header {
+            background-color: #2A323D;
+            color: white;
+            text-align: left;
+            padding: 25px;
+            display: flex;
+            align-items: center;
+            font-family: "Articulat", sans-serif;
+        }
+        #containerWrapper {
+            display: flex;
+            background-color: #f0f0f0; /* Light gray background outside the containers */
+        }
+        .chart-container {
+            border: 1px solid #ddd;
+            margin: 10px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            background-color: white; /* White background inside the container */
+        }
+        .chart-container, .row-container {
+            flex: 1;
+        }
+        #title {
+            transform-origin: left top;
+            white-space: nowrap;
+            font-size: 32px;
+            margin: 0;
+            padding: 0;
+        }
+        #addChartButton {
+            text-align: center;
+            padding: 20px;
+            cursor: pointer;
+        }
+        #removeChartButton {
+            text-align: center;
+            padding: 20px;
+            cursor: pointer;
+            display: none;
+        }
+        .chart-container {
+            border: 1px solid #ddd;
+            margin: 10px;
+            padding: 20px;
+            width: 100%;
+            box-sizing: border-box;
+            transition: width 0.5s;
+        }
+        .axis-selection {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        .chart {
+            height: 900px; /* Adjust as needed */
+        }
+        .chart-row {
+            display: flex;
+            width: 100%;
+        }
+        #chartParentContainer {
+            width: 100%;
+            height: 1000px;
+            display: flex;
+            flex-direction: row;
+        }
+    </style>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <div id="header">
+        <h1 id="title">COVID-19 DATA DASHBOARD</h1>
+    </div>
+
+    <div id="removeChartButton">
+        <button>Remove Chart</button>
+    </div>
+
+    <div id="addChartButton">
+        <button onclick="addChart()">Add Chart</button>
+    </div>
+
+    <div id="chartParentContainer">
+        <div class="axis-controls" id="axisControls1"></div>
+        <div class="axis-controls" id="axisControls2"></div>
+    </div>
+    <script>
+        // Function to populate dropdown options
+        function populateDropdown(id, options) {
+            var select = document.getElementById(id);
+            select.innerHTML = '';
+            for (var i = 0; i < options.length; i++) {
+                var option = document.createElement('option');
+                option.value = options[i];
+                option.text = options[i];
+                select.appendChild(option);
+            }
+        }
+
+        // Function to fetch column names
+        async function fetchColumns() {
+            try {
+                var response = await fetch('http://127.0.0.1:5000/api/get_columns');
+                var columns = await response.json();
+                return columns; // Return the fetched columns
+            } catch (error) {
+                console.error('Error fetching columns:', error);
+                throw error; // Rethrow the error to be caught by the caller
+            }
+        }
+
+        // Function to plot chart
+        async function plotChart() {
+            var xColumn = document.getElementById('xSelect').value;
+            var yColumn = document.getElementById('ySelect').value;
+
+            var data = {
+                x_column: xColumn,
+                y_column: yColumn
+            };
+
+            try {
+                var response = await fetch('http://127.0.0.1:5000/api/plot_data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                var plotData = await response.json();
+
+                var trace = {
+                    x: plotData.x,
+                    y: plotData.y,
+                    type: 'bar'  // Use 'bar' instead of 'scatter' for a bar chart
+                };
+
+                var layout = {
+                    title: `${yColumn} vs. ${xColumn}`,
+                    xaxis: {
+                        title: xColumn
+                    },
+                    yaxis: {
+                        title: yColumn
+                    }
+                };
+
+                Plotly.newPlot('chart', [trace], layout);
+            } catch (error) {
+                console.error('Error plotting data:', error);
+            }
+        }
+
+        let chartCounter = 0;
+        let firstChartAdded = false;
+        let secondChartAdded = false;
+
+        function addChart() {
+            chartCounter++;
+            const newChartContainer = createChartContainer(chartCounter);
+            const chartParentContainer = document.getElementById('chartParentContainer');
+
+            if (!firstChartAdded) {
+                firstChartAdded = true;
+                chartParentContainer.appendChild(newChartContainer);
+            } else if (!secondChartAdded) {
+                secondChartAdded = true;
+                const firstChartContainer = document.querySelector('.chart-container');
+                firstChartContainer.style.width = '50%';
+
+                // Remove the old Plotly chart container
+                const oldChart = firstChartContainer.querySelector('.chart');
+                if (oldChart) {
+                    oldChart.innerHTML = ''; // Clear the contents of the old chart container
+                }
+                const newChartContainer = createChartContainer(chartCounter);
+                chartParentContainer.appendChild(newChartContainer);
+            }
+            if (firstChartAdded && secondChartAdded) {
+                // Reset button text and functionality
+                const addButton = document.getElementById('addChartButton');
+                addButton.style.display = 'none';
+
+                const removeButton = document.getElementById('removeChartButton');
+                removeButton.style.display = 'block';
+                removeButton.onclick = removeChart;
+            }
+        }
+
+
+        function removeChart() {
+            const chartParentContainer = document.getElementById('chartParentContainer');
+            const secondChartContainer = document.querySelector('.chart-container:nth-child(3)');
+
+            chartParentContainer.removeChild(secondChartContainer);
+
+            // Reset chart added flags
+            secondChartAdded = false;
+            const removeButton = document.getElementById('removeChartButton');
+            removeButton.style.display = 'none';
+
+            const addButton = document.getElementById('addChartButton');
+            addButton.style.display = 'block';
+        }
+
+
+        function createChartContainer(chartIndex) {
+            const newChartContainer = document.createElement('div');
+            newChartContainer.classList.add('chart-container');
+            if (!firstChartAdded) {
+                newChartContainer.style.width = '100%';
+            }
+            else {
+                newChartContainer.style.width = '50%';
+            }
+            newChartContainer.style.height = '1000px';
+            newChartContainer.innerHTML = `
+                <div class="axis-selection">
+                    <select id="xSelect_${chartIndex}"></select>
+                    <select id="ySelect_${chartIndex}"></select>
+                    <button onclick="generateChart(${chartIndex})">Generate Chart</button>
+                </div>
+                <div class="chart" id="chart_${chartIndex}"></div>
+            `;
+
+            // Fetch column names and populate dropdowns
+            fetchColumns().then(columns => {
+                populateDropdown(`xSelect_${chartIndex}`, columns);
+                populateDropdown(`ySelect_${chartIndex}`, columns);
+            });
+
+            return newChartContainer;
+        }
+
+        async function generateChart(chartIndex) {
+            const xColumn = document.getElementById(`xSelect_${chartIndex}`).value;
+            const yColumn = document.getElementById(`ySelect_${chartIndex}`).value;
+
+            const data = {
+                x_column: xColumn,
+                y_column: yColumn
+            };
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/plot_data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const plotData = await response.json();
+
+                const trace = {
+                    x: plotData.x,
+                    y: plotData.y,
+                    type: 'bar'
+                };
+
+                const layout = {
+                    title: `${yColumn} vs. ${xColumn}`,
+                    xaxis: {
+                        title: xColumn
+                    },
+                    yaxis: {
+                        title: yColumn
+                    }
+                };
+
+                Plotly.newPlot(`chart_${chartIndex}`, [trace], layout);
+            } catch (error) {
+                console.error('Error plotting data:', error);
+            }
+        }
+
+
+        // Fetch column names when the page loads
+        fetchColumns();
+    </script>
+</body>
+</html>
