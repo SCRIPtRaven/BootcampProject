@@ -4,6 +4,7 @@ import os
 import snowflake.connector
 import pandas as pd
 from flask import Flask, request, jsonify, Response
+from flask_cors import CORS
 from pymongo.mongo_client import MongoClient
 from snowflake.connector import DictCursor
 from cryptography.fernet import Fernet
@@ -28,6 +29,7 @@ load_dotenv(stream=io.StringIO(decrypted_data.decode()))
 
 # A separate MongoDB user has been created with a simple read/write access to a single relevant cluster
 app = Flask(__name__)
+CORS(app)
 uri = "mongodb+srv://evaluatoruser:evaluatorpass@cluster.hhoqbgj.mongodb.net/?retryWrites=true&w=majority"
 mongo_client = MongoClient(uri, server_api=ServerApi('1'))
 mongo_db = mongo_client['ProjectDB']
