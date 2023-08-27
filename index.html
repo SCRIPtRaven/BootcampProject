@@ -66,11 +66,14 @@
             margin-bottom: 10px;
         }
         .chart {
-            height: 800px;
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
         }
+
         #chartParentContainer {
             width: 100%;
-            height: 1200px;
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
             display: flex;
             flex-direction: row;
         }
