@@ -28,7 +28,7 @@ def holt_winters_forecast(df):
     df['DATE'] = pd.to_datetime(df['DATE'])
     df.set_index('DATE', inplace=True)
 
-    # Here you can select a cutoff date from which to make a prediction (Do not that if the cutoff date is right at a big change, the model might not work due to the time's chaotic nature
+    # Here you can select a cutoff date from which to make a prediction (Do note that if the cutoff date is right at a big change, the model might not work due to the time's chaotic nature
     # cutoff_date = '2023-01-01'
     # df = df[df.index <= pd.Timestamp(cutoff_date)]
 
