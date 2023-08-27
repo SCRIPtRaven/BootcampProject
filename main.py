@@ -11,6 +11,7 @@ def start_local_server():
 
 
 if __name__ == "__main__":
+    print("Interactive dashboard can be found on this address: http://127.0.0.1:8000/index.html")
     flask_api_thread = threading.Thread(target=start_flask_api)
     local_server_thread = threading.Thread(target=start_local_server)
 

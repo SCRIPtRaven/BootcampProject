@@ -6,7 +6,7 @@
         body {
             margin: 0;
             padding: 0;
-            background-color: #f0f0f0; /* Light gray background outside the container */
+            background-color: #f0f0f0;
         }
         #header {
             background-color: #2A323D;
@@ -17,9 +17,9 @@
             align-items: center;
             font-family: "Articulat", sans-serif;
         }
-        #containerWrapper {
-            display: flex;
-            background-color: #f0f0f0; /* Light gray background outside the containers */
+        .comment-section {
+            margin-left: 20px;
+            margin-top: 10px;
         }
         .chart-container {
             border: 1px solid #ddd;
@@ -27,10 +27,20 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
-            background-color: white; /* White background inside the container */
+            background-color: white;
+            transition: width 0.5s;
+            width: 100%;
+            box-sizing: border-box;
         }
-        .chart-container, .row-container {
-            flex: 1;
+        .comment-container {
+            border: 1px solid #ddd;
+            margin-top: 20px;
+            margin-left: 20px;
+            padding: 20px;
+            background-color: white;
+            width: 100%;
+            box-sizing: border-box;
+            transition: width 0.5s;
         }
         #title {
             transform-origin: left top;
@@ -44,19 +54,11 @@
             padding: 20px;
             cursor: pointer;
         }
-        #removeChartButton {
+        #resetChartButton {
             text-align: center;
             padding: 20px;
             cursor: pointer;
             display: none;
-        }
-        .chart-container {
-            border: 1px solid #ddd;
-            margin: 10px;
-            padding: 20px;
-            width: 100%;
-            box-sizing: border-box;
-            transition: width 0.5s;
         }
         .axis-selection {
             display: flex;
@@ -64,15 +66,11 @@
             margin-bottom: 10px;
         }
         .chart {
-            height: 900px; /* Adjust as needed */
-        }
-        .chart-row {
-            display: flex;
-            width: 100%;
+            height: 800px;
         }
         #chartParentContainer {
             width: 100%;
-            height: 1000px;
+            height: 1200px;
             display: flex;
             flex-direction: row;
         }
@@ -83,213 +81,273 @@
     <div id="header">
         <h1 id="title">COVID-19 DATA DASHBOARD</h1>
     </div>
-
-    <div id="removeChartButton">
-        <button>Remove Chart</button>
+    <div id="resetChartButton">
+        <button>Reset Chart</button>
     </div>
-
     <div id="addChartButton">
         <button onclick="addChart()">Add Chart</button>
     </div>
-
     <div id="chartParentContainer">
         <div class="axis-controls" id="axisControls1"></div>
         <div class="axis-controls" id="axisControls2"></div>
     </div>
     <script>
-        // Function to populate dropdown options
-        function populateDropdown(id, options) {
-            var select = document.getElementById(id);
-            select.innerHTML = '';
-            for (var i = 0; i < options.length; i++) {
-                var option = document.createElement('option');
-                option.value = options[i];
-                option.text = options[i];
-                select.appendChild(option);
-            }
-        }
-
-        // Function to fetch column names
-        async function fetchColumns() {
-            try {
-                var response = await fetch('http://127.0.0.1:5000/api/get_columns');
-                var columns = await response.json();
-                return columns; // Return the fetched columns
-            } catch (error) {
-                console.error('Error fetching columns:', error);
-                throw error; // Rethrow the error to be caught by the caller
-            }
-        }
-
-        // Function to plot chart
-        async function plotChart() {
-            var xColumn = document.getElementById('xSelect').value;
-            var yColumn = document.getElementById('ySelect').value;
-
-            var data = {
-                x_column: xColumn,
-                y_column: yColumn
-            };
-
-            try {
-                var response = await fetch('http://127.0.0.1:5000/api/plot_data', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                var plotData = await response.json();
-
-                var trace = {
-                    x: plotData.x,
-                    y: plotData.y,
-                    type: 'bar'  // Use 'bar' instead of 'scatter' for a bar chart
-                };
-
-                var layout = {
-                    title: `${yColumn} vs. ${xColumn}`,
-                    xaxis: {
-                        title: xColumn
-                    },
-                    yaxis: {
-                        title: yColumn
-                    }
-                };
-
-                Plotly.newPlot('chart', [trace], layout);
-            } catch (error) {
-                console.error('Error plotting data:', error);
-            }
-        }
-
         let chartCounter = 0;
         let firstChartAdded = false;
         let secondChartAdded = false;
 
+        function populatePredefinedOptions(select) {
+            const predefinedOptions = [
+                {id: '1', name: "Global Cases Weekly (ECDC)"},
+                {id: '2', name: "Global Deaths Weekly (ECDC)"},
+                {id: '3', name: "Global Deaths vs. Cases (ECDC)"},
+                {id: '4', name: "Positive Test Results (CDC)"},
+                {id: '5', name: "Negative Test Results (CDC)"},
+                {id: '6', name: "COVID Deaths by GDP per capita"},
+            ];
+            select.innerHTML = '';
+            predefinedOptions.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option.id;
+                optionElement.textContent = option.name;
+                select.appendChild(optionElement);
+            });
+        }
+
         function addChart() {
             chartCounter++;
-            const newChartContainer = createChartContainer(chartCounter);
+            const { newChartContainer, commentContainer } = createChartContainer(chartCounter);
             const chartParentContainer = document.getElementById('chartParentContainer');
 
             if (!firstChartAdded) {
                 firstChartAdded = true;
                 chartParentContainer.appendChild(newChartContainer);
+                newChartContainer.appendChild(commentContainer);
             } else if (!secondChartAdded) {
                 secondChartAdded = true;
-                const firstChartContainer = document.querySelector('.chart-container');
-                firstChartContainer.style.width = '50%';
-
-                // Remove the old Plotly chart container
-                const oldChart = firstChartContainer.querySelector('.chart');
-                if (oldChart) {
-                    oldChart.innerHTML = ''; // Clear the contents of the old chart container
+                const firstChartContainer = document.querySelector('.chart-container:nth-child(3)');
+                if (firstChartContainer) {
+                    firstChartContainer.style.width = '50%';
+                    const oldChart = firstChartContainer.querySelector('.chart');
+                    if (oldChart) {
+                        oldChart.innerHTML = '';
+                    }
+                    const oldCommentSection = firstChartContainer.querySelector('.comment-section');
+                    if (oldCommentSection) {
+                        oldCommentSection.remove();
+                    }
+                    const firstCommentContainer = firstChartContainer.querySelector('.comment-container');
+                    if (firstCommentContainer) {
+                        firstCommentContainer.style.display = 'none';
+                        firstCommentContainer.innerHTML = '';
+                    }
                 }
-                const newChartContainer = createChartContainer(chartCounter);
                 chartParentContainer.appendChild(newChartContainer);
+                newChartContainer.appendChild(commentContainer);
             }
+
             if (firstChartAdded && secondChartAdded) {
-                // Reset button text and functionality
                 const addButton = document.getElementById('addChartButton');
                 addButton.style.display = 'none';
 
-                const removeButton = document.getElementById('removeChartButton');
-                removeButton.style.display = 'block';
-                removeButton.onclick = removeChart;
+                const resetButton = document.getElementById('resetChartButton');
+                resetButton.style.display = 'block';
+                resetButton.onclick = removeChart;
             }
         }
 
-
         function removeChart() {
             const chartParentContainer = document.getElementById('chartParentContainer');
-            const secondChartContainer = document.querySelector('.chart-container:nth-child(3)');
+            const secondChartContainer = document.querySelector('.chart-container:nth-child(4)');
+            const firstChartContainer = document.querySelector('.chart-container:nth-child(3)');
 
             chartParentContainer.removeChild(secondChartContainer);
+            chartParentContainer.removeChild(firstChartContainer);
 
-            // Reset chart added flags
             secondChartAdded = false;
-            const removeButton = document.getElementById('removeChartButton');
-            removeButton.style.display = 'none';
+            firstChartAdded = false;
+            const resetButton = document.getElementById('resetChartButton');
+            resetButton.style.display = 'none';
 
             const addButton = document.getElementById('addChartButton');
             addButton.style.display = 'block';
-        }
 
+            const commentSections = document.querySelectorAll('.comment-section');
+            commentSections.forEach(section => {
+                section.parentNode.removeChild(section);
+            });
+        }
 
         function createChartContainer(chartIndex) {
             const newChartContainer = document.createElement('div');
             newChartContainer.classList.add('chart-container');
+
+            const commentContainer = document.createElement('div');
+            commentContainer.classList.add('comment-container');
+            commentContainer.id = `comments_${chartIndex}`;
+            commentContainer.style.display = 'none';
+
             if (!firstChartAdded) {
                 newChartContainer.style.width = '100%';
-            }
-            else {
+                commentContainer.style.width = '100%';
+            } else {
                 newChartContainer.style.width = '50%';
             }
-            newChartContainer.style.height = '1000px';
+            newChartContainer.style.height = '900px';
+
             newChartContainer.innerHTML = `
                 <div class="axis-selection">
-                    <select id="xSelect_${chartIndex}"></select>
-                    <select id="ySelect_${chartIndex}"></select>
-                    <button onclick="generateChart(${chartIndex})">Generate Chart</button>
+                    <select class="options-select"></select>
+                    <button onclick="generateChart(event, ${chartIndex})">Generate Chart</button>
                 </div>
                 <div class="chart" id="chart_${chartIndex}"></div>
             `;
+            populatePredefinedOptions(newChartContainer.querySelector('.options-select'));
 
-            // Fetch column names and populate dropdowns
-            fetchColumns().then(columns => {
-                populateDropdown(`xSelect_${chartIndex}`, columns);
-                populateDropdown(`ySelect_${chartIndex}`, columns);
-            });
-
-            return newChartContainer;
+            return { newChartContainer, commentContainer };
         }
 
-        async function generateChart(chartIndex) {
-            const xColumn = document.getElementById(`xSelect_${chartIndex}`).value;
-            const yColumn = document.getElementById(`ySelect_${chartIndex}`).value;
-
-            const data = {
-                x_column: xColumn,
-                y_column: yColumn
-            };
+        async function postComment(event, chartIndex) {
+            const username = document.getElementById(`username_${chartIndex}`).value;
+            const commentText = document.getElementById(`comment_${chartIndex}`).value;
+            const selectedOptionId = document.querySelector(`.chart-container:nth-child(${chartIndex + 2}) .options-select`).value;
+            if (!username.trim() && !commentText.trim()) {
+                return;
+            }
 
             try {
-                const response = await fetch('http://127.0.0.1:5000/api/plot_data', {
+                let response = await fetch('http://127.0.0.1:5000/api/save_username', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({ username })
                 });
 
-                const plotData = await response.json();
+                await response.json();
 
-                const trace = {
-                    x: plotData.x,
-                    y: plotData.y,
-                    type: 'bar'
-                };
-
-                const layout = {
-                    title: `${yColumn} vs. ${xColumn}`,
-                    xaxis: {
-                        title: xColumn
+                response = await fetch('http://127.0.0.1:5000/api/add_comment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
                     },
-                    yaxis: {
-                        title: yColumn
-                    }
-                };
+                    body: JSON.stringify({
+                        chart_id: selectedOptionId,
+                        comment_text: commentText,
+                        user_id: username
+                    })
+                });
 
-                Plotly.newPlot(`chart_${chartIndex}`, [trace], layout);
+                await response.json();
+                document.getElementById(`username_${chartIndex}`).value = '';
+                document.getElementById(`comment_${chartIndex}`).value = '';
+                await fetchComments(chartIndex, selectedOptionId);
             } catch (error) {
-                console.error('Error plotting data:', error);
+                console.error('Error posting comment:', error);
+            }
+        }
+
+        async function fetchComments(chartIndex, chartId) {
+            const commentsDiv = document.getElementById(`comments_${chartIndex}`);
+            commentsDiv.innerHTML = '';
+
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/api/get_comments?chart_id=${chartId}`);
+                const comments = await response.json();
+
+                comments.forEach(comment => {
+                    const commentElement = document.createElement('div');
+                    commentElement.innerHTML = `<strong>${comment.user_id}:</strong> ${comment.comment_text}`;
+                    commentsDiv.appendChild(commentElement);
+                });
+            } catch (error) {
+                console.error('Error fetching comments:', error);
+            }
+        }
+
+        async function generateChart(event, chartIndex) {
+            const selectedOption = event.target.parentElement.querySelector('.options-select').value;
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/generate_chart', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ selected_option: selectedOption })
+                });
+
+                const chartData = await response.json();
+
+                await plotChart(chartIndex, chartData.title, chartData.x_axis_title, chartData.y_axis_title, chartData.x, chartData.y, selectedOption);
+
+                const commentContainer = document.getElementById(`comments_${chartIndex}`);
+                if (commentContainer) {
+                    commentContainer.style.display = 'block';
+                }
+
+                const chartContainer = document.getElementById(`chart_${chartIndex}`);
+
+                const existingCommentSection = chartContainer.nextElementSibling;
+                if (existingCommentSection && existingCommentSection.classList.contains('comment-section')) {
+                    existingCommentSection.remove();
+                }
+
+                const commentSectionHTML = `
+                    <div class="comment-section">
+                        <input type="text" id="username_${chartIndex}" class="username" placeholder="Username">
+                        <input type="text" id="comment_${chartIndex}" class="comment" placeholder="Your comment">
+                        <button onclick="postComment(event, ${chartIndex})">Post Comment</button>
+                    </div>
+                `;
+
+                chartContainer.insertAdjacentHTML('afterend', commentSectionHTML);
+
+                await fetchComments(chartIndex, selectedOption);
+
+            } catch (error) {
+                console.error('Error generating chart data:', error);
             }
         }
 
 
-        // Fetch column names when the page loads
-        fetchColumns();
+        async function plotChart(chartIndex, title, xTitle, yTitle, xData, yData, selectedOption) {
+            let trace;
+            if (selectedOption === '3') {
+                trace = {
+                    x: xData,
+                    y: yData,
+                    mode: 'markers',
+                    type: 'scatter',
+                    marker: {
+                        size: 10
+                    }
+                };
+            } else if (selectedOption === '6') {
+                trace = {
+                    x: xData,
+                    y: yData,
+                    type: 'line',
+                    mode: 'lines+markers'
+                };
+            } else {
+                trace = {
+                    x: xData,
+                    y: yData,
+                    type: 'bar'
+                };
+            }
+
+            const layout = {
+                title: title,
+                xaxis: {
+                    title: xTitle
+                },
+                yaxis: {
+                    title: yTitle
+                }
+            };
+            Plotly.newPlot(`chart_${chartIndex}`, [trace], layout);
+        }
     </script>
 </body>
 </html>
